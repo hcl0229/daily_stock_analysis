@@ -1,9 +1,12 @@
 name: 每日股票分析
 
 on:
-  # 定时触发 - 每天北京时间 18:00 (UTC 10:00)
+  # 定时触发 — 每天两次动态选股分析
   schedule:
-    - cron: '0 10 * * 1-5'     # 周一到周五，UTC 10:00 = 北京时间 18:00
+    # 北京时间 9:50 (UTC 1:50) — 开盘后动态选股 + 盘中分析
+    - cron: '50 1 * * 1-5'
+    # 北京时间 15:15 (UTC 7:15) — 收盘后动态选股 + 全天分析
+    - cron: '15 7 * * 1-5'
   
   # 手动触发
   workflow_dispatch:
@@ -56,10 +59,25 @@ jobs:
         run: |
           mkdir -p data logs reports
       
+      - name: 动态筛选股票（四分类自动选股）
+        id: screener
+        run: |
+          echo "Running dynamic stock screener..."
+          pip install efinance -q 2>/dev/null || true
+          SCREENED=$(python scripts/auto_screener.py 2>&1 | tee /tmp/screener.log | grep "^SCREENED:" | cut -d: -f2-)
+          if [ -n "$SCREENED" ]; then
+            echo "Screened stocks: $SCREENED"
+            echo "SCREENED_STOCKS=$SCREENED" >> $GITHUB_ENV
+          else
+            echo "Screener returned no results, will use fallback"
+          fi
+          echo "--- Screener Log ---"
+          cat /tmp/screener.log
+
       - name: 执行股票分析
         env:
           # ==========================================
-          # AI 配置
+          # AI 配置 (DeepSeek v4-flash)
           # ==========================================
           # LITELLM_CONFIG
           LITELLM_CONFIG: ${{ vars.LITELLM_CONFIG || secrets.LITELLM_CONFIG }}
@@ -352,7 +370,7 @@ jobs:
           # ==========================================
           # 自选股配置
           # ==========================================
-          STOCK_LIST: ${{ vars.STOCK_LIST || secrets.STOCK_LIST || '600519' }}
+          STOCK_LIST: ${{ env.SCREENED_STOCKS || vars.STOCK_LIST || secrets.STOCK_LIST || '600519,000858,300750,002594,601318' }}
           MARKET_REVIEW_REGION: ${{ vars.MARKET_REVIEW_REGION || secrets.MARKET_REVIEW_REGION || 'cn' }}
           MARKET_REVIEW_COLOR_SCHEME: ${{ vars.MARKET_REVIEW_COLOR_SCHEME || secrets.MARKET_REVIEW_COLOR_SCHEME || 'green_up' }}
           
