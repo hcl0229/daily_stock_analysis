@@ -61,9 +61,10 @@ jobs:
       
       - name: 动态筛选股票（四分类自动选股）
         id: screener
+        env:
+          TUSHARE_TOKEN: ${{ secrets.TUSHARE_TOKEN }}
         run: |
           echo "Running dynamic stock screener..."
-          pip install efinance -q 2>/dev/null || true
           SCREENED=$(python scripts/auto_screener.py 2>&1 | tee /tmp/screener.log | grep "^SCREENED:" | cut -d: -f2-)
           if [ -n "$SCREENED" ]; then
             echo "Screened stocks: $SCREENED"
