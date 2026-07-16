@@ -27,9 +27,10 @@ on:
         type: boolean
 
 # 并发控制：同一时间只运行一个分析任务
+# cancel-in-progress: true 防止卡住的队列阻塞新的调度
 concurrency:
   group: stock-analysis
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   analyze:
